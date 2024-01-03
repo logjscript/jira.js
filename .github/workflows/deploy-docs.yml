@@ -1,0 +1,52 @@
+name: Publish Documentation
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate docs
+        run: npm run doc
+
+      - name: Extract version
+        id: pkg
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Checkout docs branch
+        uses: actions/checkout@v4
+        with:
+          ref: docs
+          clean: false
+
+      - name: Copy docs to root
+        run: |
+          cp -v -r docs/* .
+          rm -rf docs
+
+      - name: Commit and push docs
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Update documentation for version v${{ env.VERSION }}"
+          git push
